@@ -1,0 +1,41 @@
+# architecture related
+K: 2
+Kd: 3
+nf: 64
+nz: 18
+nz_cond: 24
+nz_cond2: 8
+activation: b1leakyrelu
+nn_input_channel: 3
+use_res_block: 1
+use_res_block_dec: 1
+n_layer_cond: 1
+cond_encoder: 1
+reduce_dim: 4
+pose_type: rot
+
+# loss related
+lambda_gan: 0.1
+lambda_latent: 0.0008
+lambda_edge: 0.0
+lambda_recon: 1.0
+loss: l1
+
+# training related
+batch_size: 16
+num_epochs: 60
+decay_every: 1
+lr: 0.008
+lr_scaler: 0.1
+optimizer: sgd
+regularization: 0.002
+restart: 1
+seed: 123
+loss_mask: None
+
+# demo related
+mode: demo
+demo_n_sample: 5
+save_obj: 1
+vis_demo: 0
+
