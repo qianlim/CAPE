@@ -52,12 +52,12 @@ If you find our code / paper / data useful to your research, please consider cit
 
 ```bibtex
 @inproceedings{CAPE:CVPR:20,
-  title = {Learning to Dress 3D People in Generative Clothing},
-  author = {Ma, Qianli and Yang, Jinlong and Ranjan, Anurag and Pujades, Sergi and Pons-Moll, Gerard and Tang, Siyu and Black, Michael J.},
-  booktitle = {Computer Vision and Pattern Recognition (CVPR)},
-  month = jun,
-  year = {2020},
-  month_numeric = {6}
+    title = {Learning to Dress 3D People in Generative Clothing},
+    author = {Ma, Qianli and Yang, Jinlong and Ranjan, Anurag and Pujades, Sergi and Pons-Moll, Gerard and Tang, Siyu and Black, Michael J.},
+    booktitle = {Computer Vision and Pattern Recognition (CVPR)},
+    month = jun,
+    year = {2020},
+    month_numeric = {6}
 }
 ```
 
@@ -65,11 +65,11 @@ The model and codes are based on [CoMA (ECCV18')](https://coma.is.tue.mpg.de/), 
 
 ```bibtex
  @inproceedings{COMA:ECCV18,
-			title = {Generating {3D} faces using Convolutional Mesh Autoencoders},
-			author = {Anurag Ranjan, Timo Bolkart, Soubhik Sanyal, and Michael J. Black},
-			booktitle = {European Conference on Computer Vision (ECCV)},
-			pages = {725--741},
-			publisher = {Springer International Publishing},
-			year = {2018},
+    title = {Generating {3D} faces using Convolutional Mesh Autoencoders},
+    author = {Anurag Ranjan, Timo Bolkart, Soubhik Sanyal, and Michael J. Black},
+    booktitle = {European Conference on Computer Vision (ECCV)},
+    pages = {725--741},
+    publisher = {Springer International Publishing},
+    year = {2018},
 	}
 ```
