@@ -6,6 +6,8 @@ Tensorflow (1.13) implementation of the CAPE model, a Mesh-CVAE with a mesh patc
 
 [Learning to Dress 3D People in Generative Clothing](https://arxiv.org/abs/1907.13615)
 
+![](data/cape.gif)
+
 ### Installation
 
 We recommend creating a new virtual environment for a clean installation of the dependencies. The code has been tested on Ubuntu 18.04, python 3.6 and CUDA 10.0.
