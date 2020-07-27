@@ -5,6 +5,7 @@ import os, time, collections, shutil
 from . import losses, utils
 from .mesh_sampling import rescale_L
 from psbody.mesh import Mesh
+import tqdm
 
 from tensorflow.python.util import deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -232,8 +233,8 @@ class CAPE(base_model):
     Takes 2 conditions: body pose and clothing type (one-hot encoding)
     '''
     def __init__(self, L, D, U, L_d, D_d, lr_scaler, lambda_gan, use_res_block, use_res_block_dec, nz_cond2,
-                 cond2_dim, Kd, n_layer_cond=1, cond_encoder=True, reduce_dim=True,
-                 lr_warmup=False, **kwargs):
+                 cond2_dim, Kd, n_layer_cond=1, cond_encoder=True, reduce_dim=True, affine=False,
+                 lr_warmup=False, optim_condnet=True, **kwargs):
         super(CAPE, self).__init__(L, D, U, **kwargs)
         self.Laplacian_d, self.Downsample_mtx_d = L_d, D_d
         self.Laplacian, self.Downsample_mtx, self.Upsample_mtx= L, D, U
@@ -245,8 +246,10 @@ class CAPE(base_model):
         self.cond2_dim = cond2_dim
         self.n_layer_cond = n_layer_cond
         self.cond_encoder = cond_encoder
+        self.optim_condnet = optim_condnet
 
         self.reduce_dim = reduce_dim
+        self.affine = affine
 
         if self.reduce_dim > 0:
             self.reduce_rate = self.out_channels[-1] // self.reduce_dim
@@ -347,7 +350,6 @@ class CAPE(base_model):
             self.op_summary = tf.summary.merge_all()
             self.op_saver = tf.train.Saver(max_to_keep=5)
 
-        # self.graph.finalize()
 
     def loss(self, g_outputs, g_gt, d_logits_real, d_logits_fake, smooth=0.1):
         with tf.name_scope('loss'):
@@ -429,15 +431,15 @@ class CAPE(base_model):
                 warmup_lr_d = (lr_d * tf.cast(global_step, tf.float32) / tf.cast(warmup_steps, tf.float32))
 
                 # then decay
-                lr_g_decay = tf.train.exponential_decay(lr_g, global_step-warmup_steps, decay_steps, decay_rate, staircase=True)
-                lr_d_decay = tf.train.exponential_decay(lr_d, global_step-warmup_steps, decay_steps, decay_rate, staircase=True)
+                lr_g_decay = tf.train.exponential_decay(lr_g, global_step-warmup_steps, int(decay_steps), decay_rate, staircase=True)
+                lr_d_decay = tf.train.exponential_decay(lr_d, global_step-warmup_steps, int(decay_steps), decay_rate, staircase=True)
 
                 lr_g = tf.cond(global_step < warmup_steps, lambda: warmup_lr_g, lambda: lr_g_decay)
                 lr_d = tf.cond(global_step < warmup_steps, lambda: warmup_lr_d, lambda: lr_d_decay)
 
             else:
-                lr_g = tf.train.exponential_decay(lr_g, global_step, decay_steps, decay_rate, staircase=True)
-                lr_d = tf.train.exponential_decay(lr_d, global_step, decay_steps, decay_rate, staircase=True)
+                lr_g = tf.train.exponential_decay(lr_g, global_step, int(decay_steps), decay_rate, staircase=True)
+                lr_d = tf.train.exponential_decay(lr_d, global_step, int(decay_steps), decay_rate, staircase=True)
 
             tf.summary.scalar('lr_g', lr_g)
             tf.summary.scalar('lr_d', lr_d)
@@ -450,7 +452,11 @@ class CAPE(base_model):
                 opt_g = tf.train.MomentumOptimizer(lr_g, momentum)
                 opt_d = tf.train.MomentumOptimizer(lr_d, momentum)
 
-            vars_g = [v for v in tf.trainable_variables() if v.name.startswith('generator') or 'condition' in v.name]
+            if self.optim_condnet:
+                vars_g = [v for v in tf.trainable_variables() if v.name.startswith('generator') or 'condition' in v.name]
+            else:
+                vars_g = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
+
             grads_g, variables_g = zip(*opt_g.compute_gradients(loss_g, var_list=vars_g))
             grads_g, _ = tf.clip_by_global_norm(grads_g, 5.0) # prevent gradient explosion
             op_gradients_g = opt_g.apply_gradients(zip(grads_g, variables_g), global_step=global_step)
@@ -539,7 +545,7 @@ class CAPE(base_model):
                     x = self.cnp(x, i, 'encoder_conv{}'.format(i + 1))
 
             # one more layer of '1x1' conv to reduce #channels, so that the final fc layer of the encoder
-            # is smaller, thereby prevent overfitting
+            # is smaller, thereby preventing overfitting
             if self.reduce_dim > 0:
                 with tf.variable_scope('1x1-conv'):
                     x = self.filter(x, self.Laplacian[-1], self.out_channels[-1] // self.reduce_rate, K=1)
@@ -589,7 +595,10 @@ class CAPE(base_model):
 
             for i in range(len(self.out_channels)):
                 if use_res_block:
-                    x = self.res_block_decoder(x, i, 'decoder_resblock_cmr{}'.format(i + 1), is_train=is_train)
+                    if not self.affine:
+                        x = self.res_block_decoder(x, i, 'decoder_resblock_cmr{}'.format(i + 1), reuse=reuse, is_train=is_train)
+                    else:
+                        x = self.res_block_affine(x, i, 'decoder_resblock_affine{}'.format(i + 1))
                 else:
                     x = self.udn(x, self.out_channels, i, 'decoder_conv{}'.format(i + 1))
 
@@ -669,11 +678,11 @@ class CAPE(base_model):
         return pred_map
 
 
-    def gn(self, x, is_train, norm_type='group', G=32, eps=1e-5):
+    def gn(self, x, is_train, name, norm_type='group', G=32, eps=1e-5, reuse=False):
         '''
         Normalization layers
         '''
-        with tf.variable_scope('{}_norm'.format(norm_type)):
+        with tf.variable_scope(name, reuse=reuse):
             if norm_type == 'none':
                 output = x
             elif norm_type == 'batch':
@@ -690,8 +699,8 @@ class CAPE(base_model):
                 mean, var = tf.nn.moments(x, [2, 3], keep_dims=True)
                 x = (x - mean) / tf.sqrt(var + eps)
                 # per channel gamma and beta
-                gamma = tf.Variable(tf.constant(1.0, shape=[C]), dtype=tf.float32, name='gamma')
-                beta = tf.Variable(tf.constant(0.0, shape=[C]), dtype=tf.float32, name='beta')
+                gamma = tf.get_variable('gamma', shape=[C], dtype=tf.float32, initializer=tf.constant_initializer(1.0))
+                beta = tf.get_variable('beta', shape=[C], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
                 gamma = tf.reshape(gamma, [1, C, 1])
                 beta = tf.reshape(beta, [1, C, 1])
 
@@ -732,22 +741,22 @@ class CAPE(base_model):
         return x_pooled
 
 
-    def res_block_decoder(self, x_in, i, name, is_train=False):
+    def res_block_decoder(self, x_in, i, name, reuse=False, is_train=False):
         '''residual block for the decoder, as an alternative to plain graph conv layers (udn() defined in base class),
         following the design of https://arxiv.org/pdf/1905.03244.pdf that uses group normalization.
         '''
-        with tf.variable_scope(name):
+        with tf.variable_scope(name, reuse=reuse):
             with tf.name_scope('unpooling'):
                 x_unpooled = self.unpool(x_in, self.Upsample_mtx[-i - 1])
-            x = self.gn(x_unpooled, is_train=is_train)
+            x = self.gn(x_unpooled, name='group_norm', is_train=is_train, reuse=reuse)
             x = tf.nn.relu(x)
             with tf.variable_scope('graph_linear_1'):
                 x = self.filter(x, self.Laplacian[-i-2], self.out_channels[-i-1]//2, K=1)
-            x = self.gn(x, is_train=is_train)
+            x = self.gn(x, name='group_norm_1', is_train=is_train, reuse=reuse)
             x = tf.nn.relu(x)
             with tf.variable_scope('graph_conv'):
                 x = self.filter(x, self.Laplacian[-i-2], self.out_channels[-i-1]//2, self.poly_order[-i-1])
-            x = self.gn(x, is_train=is_train)
+            x = self.gn(x, name='group_norm_2', is_train=is_train, reuse=reuse)
             x = tf.nn.relu(x)
             with tf.variable_scope('graph_linear_2'):
                 x = self.filter(x, self.Laplacian[-i-2], self.out_channels[-i-1], K=1)
@@ -760,6 +769,25 @@ class CAPE(base_model):
 
             x = x + x_unpooled
 
+            print('{}: ({}, {}), K={}'.format(name, int(x.get_shape()[1]), int(x.get_shape()[2]),
+                                              self.poly_order[i]))
+        return x
+
+    def res_block_affine(self, x, i, name):
+        '''residual block that adds an affine transformation to the graph conv outputs
+           see https://arxiv.org/abs/2004.02658
+        '''
+        with tf.variable_scope(name):
+            with tf.name_scope('unpooling'):
+                x = self.unpool(x, self.Upsample_mtx[-i - 1])
+            with tf.variable_scope('graph_conv'):
+                x_gc = self.filter(x, self.Laplacian[-i-2], self.out_channels[-i-1]//2, self.poly_order[-i-1])
+            x_gc = tf.nn.relu(x_gc)
+
+            channels_filtered = x_gc.get_shape()[-1]
+            with tf.variable_scope('affine'):
+                x_affine = self.filter(x, self.Laplacian[-i-2], channels_filtered, K=1)
+            x = x_affine + x_gc
             print('{}: ({}, {}), K={}'.format(name, int(x.get_shape()[1]), int(x.get_shape()[2]),
                                               self.poly_order[i]))
         return x
@@ -811,9 +839,9 @@ class CAPE(base_model):
         training loop
         '''
         train_data, train_cond, train_cond2, train_labels = \
-            data_wrapper.vertices_train_A, data_wrapper.data_train_C, data_wrapper.data_train_C2, data_wrapper.vertices_train_A
+            data_wrapper.vertices_train, data_wrapper.cond1_train, data_wrapper.cond2_train, data_wrapper.vertices_train
         val_data, val_cond, val_cond2, val_labels = \
-            data_wrapper.vertices_val_A, data_wrapper.data_val_C, data_wrapper.data_val_C2, data_wrapper.vertices_val_A
+            data_wrapper.vertices_val, data_wrapper.cond1_val, data_wrapper.cond2_val, data_wrapper.vertices_val
 
         num_steps_epoch = int(train_data.shape[0] / self.batch_size)
         num_steps = self.num_epochs * num_steps_epoch
@@ -877,8 +905,8 @@ class CAPE(base_model):
             learning_rate_g, loss_average_g = sess.run([self.op_train_g, self.op_loss_average_g], feed_dict) # train generator
             learning_rate_d, loss_average_d = sess.run([self.op_train_d, self.op_loss_average_d], feed_dict) # train discriminator
             if step % num_steps_epoch == 0 or step == num_steps:
-                epoch = step * self.batch_size / train_data.shape[0]
-                print('step {} / {} (epoch {:.2f} / {}):'.format(step, num_steps, epoch, self.num_epochs))
+                epoch = int(step * self.batch_size / train_data.shape[0])
+                print('step {} / {} (epoch {} / {}):'.format(step, num_steps, epoch, self.num_epochs))
 
                 print('  learning_rate_g = {:.2e}, loss_average_g = {:.2e}'.format(learning_rate_g, loss_average_g))
                 print('  learning_rate_d = {:.2e}, loss_average_d = {:.2e}'.format(learning_rate_d, loss_average_d))
@@ -987,7 +1015,7 @@ class CAPE(base_model):
 
         return z_cond_pred, z_cond2_pred
 
-    def predict(self, data, cond=None, cond2=None, labels=None, sess=None):
+    def predict(self, data, cond=None, cond2=None, labels=None, sess=None, phase='train'):
         """
         Makes model prediction and evaluate the auto-encoding precision.
         args:
@@ -996,6 +1024,8 @@ class CAPE(base_model):
             cond2: the second condition vector, in CAPE it's one-hot clothing type vector
             labels: ground truth, in autoencoding it's the data itself
             sess: tensorflow session to run evaluation
+            phase: 'train' or 'test'. This is only used to show a tqdm progress bar at
+                    real test time (validation during training not included)
         returns:
             predicted mesh vertices, and loss values from evaluation
         """
@@ -1008,7 +1038,8 @@ class CAPE(base_model):
         # when the last batch cannot be sharply filled with datas, the rest are filled with zeros
         num_zero_phs = self.batch_size * (size/self.batch_size + 1) - size
         sess = self._get_session(sess)
-        for begin in range(0, size, self.batch_size):
+        disable_tqdm = (phase!='test')
+        for begin in tqdm.tqdm(range(0, size, self.batch_size), disable=disable_tqdm):
             end = begin + self.batch_size
             end = min([end, size])
 

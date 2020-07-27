@@ -24,7 +24,7 @@ pip install -U pip setuptools
 
 ### Run demo code
 
-Download the [checkpoint](https://drive.google.com/drive/folders/14KaTBkI9Qec1nb6qeDnLshu_8FzkzQsB?usp=sharing) and put this checkpoint folder under the `checkpoints` folder. Then run:
+Download the [checkpoint](https://drive.google.com/drive/folders/1H-kbLnIv9_k2DADrldXWplGauSnoqIhF?usp=sharing) and put this checkpoint folder under the `checkpoints` folder. Then run:
 
 ```bash
 python main.py --config configs/config.yaml --mode demo --vis_demo 1 --smpl_model_folder <path to SMPL model folder>
@@ -42,13 +42,17 @@ We are currently working on making the new train / test splits corresponding to 
 
 Check out our [project website](https://cape.is.tue.mpg.de/) for the new CAPE dataset, featuring approximately 150K dynamnic clothed human mesh registrations from real scan data, with consistent topology, making it an alternative to the popular Dynamic Faust dataset for 3D shape training and evaluation, and yet has more diverse shape deformations. 
 
+### Updates
+
+26/07/2020 Updated the link to the pretrained checkpoint (previous one was faulty and generates weird shapes); minor bug fixes in the group norm param loading.
+
 ### License
 
 Software Copyright License for non-commercial scientific research purposes. Please read carefully the [terms and conditions](./LICENSE) and any accompanying documentation before you download and/or use the CAPE data and software, (the "Dataset & Software"), including 3D meshes, pose parameters, scripts, and animations. By downloading and/or using the Model & Software (including downloading, cloning, installing, and any other use of this github repository), you acknowledge that you have read these terms and conditions, understand them, and agree to be bound by them. If you do not agree with these terms and conditions, you must not download and/or use the Model & Software. Any infringement of the terms of this agreement will automatically terminate your rights under this [License](./LICENSE).
 
 The SMPL body related files  `data/{template_mesh.obj, edges_smpl.npy}` are  subject to the license of the [SMPL model](https://smpl.is.tue.mpg.de/modellicense). The [PSBody mesh package](https://github.com/MPI-IS/mesh) and [smplx python package](https://github.com/vchoutas/smplx) are subject to their own licenses.
 
-### Citing
+### Citations
 
 If you find our code / paper / data useful to your research, please consider citing:
 
@@ -73,5 +77,5 @@ The model and codes are based on [CoMA (ECCV18')](https://coma.is.tue.mpg.de/), 
     pages = {725--741},
     publisher = {Springer International Publishing},
     year = {2018},
-	}
+    }
 ```
