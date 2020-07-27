@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 import os
 import smplx
 import torch
@@ -10,13 +9,13 @@ from lib.utils import filter_cloth_pose
 np.random.seed(123)
 
 class demo(object):
-    def __init__(self, model, name, dataset, data_dir, datadir_root, n_sample, save_obj,
-                 sample_option='normal', smpl_model_folder='', vis=True):
+    def __init__(self, bodydata, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
+                 smpl_model_folder='', vis=True):
         self.n_sample = n_sample
-        self.sample_option = sample_option
         self.name = name
         self.data_dir = data_dir
         self.datadir_root = datadir_root
+        self.bodydata = bodydata
         self.model = model
         self.dataset = dataset
         self.save_obj = save_obj
@@ -24,11 +23,14 @@ class demo(object):
 
         self.smpl_model = smplx.body_models.create(model_type='smpl',
                                                    model_path=smpl_model_folder,
-                                                   gender='neutral')
+                                                   gender=gender)
+
+        self.clo_type_readable = np.array(['shortlong', 'shortshort', 'longshort', 'longlong'])
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.clothing_verts_idx = np.load(join(script_dir, 'data', 'clothing_verts_idx.npy'))
         self.ref_mesh = Mesh(filename=join(script_dir, 'data', 'template_mesh.obj'))
+        self.vpe = np.load(os.path.join(script_dir, 'data', 'edges_smpl.npy'))  # vertex per edge
         self.minimal_shape = self.ref_mesh.v
 
         self.rot = np.load(join(script_dir, 'data', 'demo_data', 'demo_pose_params.npz'))['rot'] # 216 dim pose vector
@@ -39,16 +41,96 @@ class demo(object):
         self.train_std = train_stats['std']
 
         self.results_dir = join(script_dir, 'results', name)
-        if not exists(self.results_dir):
-            os.makedirs(self.results_dir)
+        os.makedirs(self.results_dir, exist_ok=True)
+
+
+    def test_model(self):
+        '''
+        test the auto-encoding errors of the model
+        '''
+        print('\n=============== Running demo: test reconstruction ===============')
+
+        obj_dir = join(self.results_dir, 'test_reconstruction_objs_{}'.format(self.dataset))
+
+        vertices = self.bodydata.vertices_test
+        condition = self.bodydata.cond1_test
+        if hasattr(self.bodydata, 'cond1_test_full'):
+            pose_params_full = self.bodydata.cond1_test_full
+        condition2 = self.bodydata.cond2_test
+
+        print("\nTesting on test set, {} examples...\n".format(len(vertices)))
+
+        predictions, recon_loss, latent_loss, edge_loss = self.model.predict(data=vertices,
+                                                                             cond=condition,
+                                                                             cond2=condition2,
+                                                                             labels=vertices,
+                                                                             phase='test')
+        predictions = predictions * self.bodydata.std + self.bodydata.mean
+        gt = vertices * self.bodydata.std + self.bodydata.mean
+
+        # compute the test errors that belong to clothing-related vertices
+        diff = predictions - gt
+        diff = diff[:, self.clothing_verts_idx, :]
+
+        euclidean_err = np.sqrt(np.sum(diff ** 2, axis=2))
+        euclidean_err_mean = np.mean(euclidean_err)
+        euclidean_err_std = np.std(euclidean_err)
+        euclidean_err_median = np.median(euclidean_err)
+
+        test_result_str = "\nResults from {}: \n" \
+                          "L1 {:.5f}, KL {:.5f}, Edge {:.5f}\n" \
+                          "Eucledian err mean {:.5f}, std {:.5f}, median {:.5f}.\n".format(self.name,
+                                recon_loss, latent_loss, edge_loss,
+                                euclidean_err_mean, euclidean_err_std, euclidean_err_median)
+        print(test_result_str)
+        with open(os.path.join(self.results_dir, 'test_results_{}.txt'.format(self.dataset)), 'a+') as fp:
+            fp.write(test_result_str)
+
+        with open(os.path.join(self.results_dir, '../all_test_results_{}.txt'.format(self.dataset)), 'a+') as fp:
+            fp.write(test_result_str)
+
+        # visualize / save results
+        disp_masked = np.zeros_like(predictions) # only add cloth_related disps to body
+        disp_masked[:, self.clothing_verts_idx, :] = predictions[:, self.clothing_verts_idx, :]
+
+        predictions_fullbody = disp_masked + self.minimal_shape
+        gt_fullbody = gt + self.minimal_shape
+
+        if pose_params_full.shape[-1] == 216:
+            # if we use rotation matrices (24*9=216 dim) as condition,
+            # need to process it to become pose params (24*3=72 dim)
+            from lib.utils import rot2pose
+            pose_params_full = rot2pose(pose_params_full)
+
+        if self.save_obj or self.vis:
+            if hasattr(self.bodydata, 'cond1_test_full'):
+                # only save / vis exemplars of test set, to save time and disk space
+                predictions_fullbody_sliced = predictions_fullbody[::int(len(gt_fullbody)/self.n_sample)]
+                pose_params_full_sliced = pose_params_full[::int(len(gt_fullbody)/self.n_sample)]
+                predictions_fullbody_posed = self.pose_result(predictions_fullbody_sliced, pose_params_full_sliced,
+                                                              save_obj=self.save_obj, obj_dir=obj_dir)
+                if self.vis:
+                    gt_fullbody_sliced = gt_fullbody[::int(len(gt_fullbody)/self.n_sample), :, :]
+                    gt_fullbody_posed = self.pose_result(gt_fullbody_sliced, pose_params_full_sliced, save_obj=False, obj_dir=obj_dir)
+                    minimal_shape_posed = self.pose_result(np.array([self.minimal_shape]), pose_params_full_sliced, save_obj=False)
+
+            elif self.vis:
+                    minimal_shape_repeated = np.repeat(self.minimal_shape[np.newaxis, :], gt_fullbody.shape[0], axis=0)
+
+        if self.vis:
+            if hasattr(self.bodydata, 'cond1_test_full'):
+                self.vis_meshviewer(predictions_fullbody_posed, gt_fullbody_posed, minimal_shape_posed, self.n_sample)
+            else:
+                self.vis_meshviewer(predictions_fullbody, gt_fullbody, minimal_shape_repeated, self.n_sample)
+
 
     def sample_vary_pose(self):
         '''
-        fix clothing type, sample sevearl poses, under each pose sample latent code N times
+        fix clothing type, sample several poses, under each pose sample latent code N times
         '''
         full_pose = self.pose # take the corresponding full 72-dim pose params, for later reposing
         rot = filter_cloth_pose(self.rot) # only keep pose params from clo-related joints; then take one pose instance
-        clotype = np.array([1, 0, 0, 0]) # one-hot clothing type label
+        clotype = (self.clo_type_readable == 'shortlong').astype(int) # fix one clothing type
         clotype_repeated = np.repeat(clotype[np.newaxis, :], len(rot), axis=0)
 
         # get latent embedding of the conditions
@@ -86,9 +168,61 @@ class demo(object):
                 self.vis_meshviewer(mesh1=predictions_fullbody_posed, mesh2=minimal_shape_posed, mesh3=None,
                             n_sample=self.n_sample, titlebar='Sample vary pose')
 
-    def vis_meshviewer(self, mesh1, mesh2, mesh3, n_sample, titlebar='titlebar', disp_value=False, values_to_disp=None):
-        from psbody.mesh import Mesh, MeshViewer, MeshViewers
 
+    def sample_vary_clotype(self):
+        '''
+        fix body pose, sample 4 clothing types, under each clothing type sample latent code N times
+        '''
+        full_pose = self.pose[2] # take the corresponding full 72-dim pose params, for later reposing
+        full_pose_repeated = np.repeat(full_pose[np.newaxis,:], self.n_sample, axis=0)
+
+        clotype = np.unique(self.bodydata.cond2_test, axis=0)
+        rot = filter_cloth_pose(self.rot)[0]  # only keep pose params from clo-related joints; then take one pose instance
+        rot_repeated = np.repeat(rot[np.newaxis,:], len(clotype), axis=0) # repeat to pair with clotype
+
+        # get latent embedding of the conditions
+        pose_emb, clotype_emb = self.model.encode_only_condition(rot_repeated, clotype)
+        pose_emb = pose_emb[0] # since it's repeated so only take one
+
+        print('\n=============== Running demo: fix z, pose, change clothing type ===============')
+        print('Found {} different clothing types, for each we generate {} samples\n'.format(len(clotype), self.n_sample))
+
+        obj_dir = join(self.results_dir, 'sample_vary_clotype')
+
+        # sample z from latent space
+        z_samples = np.random.normal(loc=0.0, scale=1.0, size=(self.n_sample, self.model.nz))
+
+        for i in range(len(clotype)):
+            clotype_i = clotype[i]
+            clotype_emb_i =clotype_emb[i]
+
+            clotype_name = self.clo_type_readable[np.argmax(clotype_i)] # get the human-readable clothing types from one-hot vecs
+
+            # concat z with conditions
+            z_sample_c = np.array([np.concatenate([sample.reshape(1, -1), pose_emb.reshape(1, -1),
+                                clotype_emb_i.reshape(1, -1)], axis=1) for sample in z_samples]).reshape(self.n_sample, -1)
+
+            predictions = self.model.decode(z_sample_c, cond=pose_emb.reshape(1,-1), cond2=clotype_emb_i.reshape(1,-1))
+
+            predictions = predictions * self.train_std + self.train_mean
+
+            # exclude head, fingers and toes
+            disp_masked = np.zeros_like(predictions)
+            disp_masked[:, self.clothing_verts_idx, :] = predictions[:, self.clothing_verts_idx, :]
+
+            predictions_fullbody = disp_masked + self.minimal_shape
+
+            predictions_fullbody_posed = self.pose_result(predictions_fullbody, full_pose_repeated,
+                                                          cloth_type='clotype_{}'.format(clotype_name),
+                                                          save_obj=self.save_obj, obj_dir=obj_dir)
+            minimal_shape_posed = self.pose_result(np.array([self.minimal_shape]), full_pose_repeated,
+                                                   save_obj=False)
+            if self.vis:
+                self.vis_meshviewer(mesh1=predictions_fullbody_posed, mesh2=minimal_shape_posed, mesh3=None,
+                                n_sample=self.n_sample, titlebar='Sample vary clothtype, clothing type: {}'.format(clotype_name))
+
+
+    def vis_meshviewer(self, mesh1, mesh2, mesh3, n_sample, titlebar='titlebar', disp_value=False, values_to_disp=None):
         if mesh3 is not None:
             viewer = MeshViewers(shape=(1, 3), titlebar=titlebar)
             for x in range(n_sample):
@@ -109,6 +243,7 @@ class demo(object):
                 else:
                     input('Current value: {}'.format(values_to_disp[x]))
 
+
     def pose_result(self, verts, pose_params, save_obj, cloth_type=None, obj_dir=None):
         '''
         :param verts: [N, 6890, 3]
@@ -127,7 +262,6 @@ class demo(object):
         if verts.shape[0] == 1:
             self.smpl_model.v_template[:] = torch.from_numpy(verts[0])
             for i in range(len(pose_params)):
-                # model.pose[:] = pose_params[i]
                 self.smpl_model.body_pose[:] = torch.from_numpy(pose_params[i][3:])
                 self.smpl_model.global_orient[:] = torch.from_numpy(pose_params[i][:3])
                 verts_out = self.smpl_model().vertices.detach().cpu().numpy()
@@ -151,6 +285,7 @@ class demo(object):
                         Mesh(verts_out.squeeze(), self.smpl_model.faces).write_obj(join(obj_dir, '{:0>4d}.obj').format(i))
 
         return verts_posed
+
 
     def pose_result_onepose_multisample(self, verts, pose_params, pose_idx, save_obj, obj_dir=None):
         '''
@@ -191,5 +326,7 @@ class demo(object):
 
 
     def run(self):
+        self.test_model()
         self.sample_vary_pose()
+        self.sample_vary_clotype()
 
