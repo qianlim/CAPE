@@ -5,8 +5,10 @@
 Tensorflow (1.13) implementation of the CAPE model, a Mesh-CVAE with a mesh patch discriminator, for **dressing SMPL bodies** with pose-dependent clothing, introduced in the CVPR 2020 paper:
 
 **Learning to Dress 3D People in Generative Clothing**
+
 Qianli Ma, Jinlong Yang, Anurag Ranjan, Sergi Pujades, Gerard Pons-Moll, Siyu Tang, and Michael. J. Black
-[Full paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Ma_Learning_to_Dress_3D_People_in_Generative_Clothing_CVPR_2020_paper.pdf) | [Paper in 1 min](https://cape.is.tue.mpg.de/uploads/ckeditor/attachments/273/382-1min.mp4) | [New dataset](https://cape.is.tue.mpg.de/dataset) | [Project Website](https://cape.is.tue.mpg.de/)
+
+[Full paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Ma_Learning_to_Dress_3D_People_in_Generative_Clothing_CVPR_2020_paper.pdf) | [Paper in 1 min](https://cape.is.tue.mpg.de/uploads/ckeditor/attachments/273/382-1min.mp4) | [New dataset](https://cape.is.tue.mpg.de/dataset) | [Project website](https://cape.is.tue.mpg.de/)
 
 
 ![](data/cape.gif)
