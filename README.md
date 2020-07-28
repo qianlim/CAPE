@@ -4,10 +4,8 @@
 
 Tensorflow (1.13) implementation of the CAPE model, a Mesh-CVAE with a mesh patch discriminator, for **dressing SMPL bodies** with pose-dependent clothing, introduced in the CVPR 2020 paper:
 
-**Learning to Dress 3D People in Generative Clothing**
-
-Qianli Ma, Jinlong Yang, Anurag Ranjan, Sergi Pujades, Gerard Pons-Moll, Siyu Tang, and Michael. J. Black
-
+**Learning to Dress 3D People in Generative Clothing** <br>
+Qianli Ma, Jinlong Yang, Anurag Ranjan, Sergi Pujades, Gerard Pons-Moll, Siyu Tang, and Michael. J. Black <br>
 [Full paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Ma_Learning_to_Dress_3D_People_in_Generative_Clothing_CVPR_2020_paper.pdf) | [Paper in 1 min](https://cape.is.tue.mpg.de/uploads/ckeditor/attachments/273/382-1min.mp4) | [New dataset](https://cape.is.tue.mpg.de/dataset) | [Project website](https://cape.is.tue.mpg.de/)
 
 
@@ -29,7 +27,7 @@ pip install -U pip setuptools
 
 ## Run demo code
 
-Download the [checkpoint](https://drive.google.com/drive/folders/1H-kbLnIv9_k2DADrldXWplGauSnoqIhF?usp=sharing) and put this checkpoint folder under the `checkpoints` folder. Then run:
+Download the [pre-trained model](https://drive.google.com/drive/folders/1H-kbLnIv9_k2DADrldXWplGauSnoqIhF?usp=sharing) and put this checkpoint folder under the `checkpoints` folder. Then run:
 
 ```bash
 python main.py --config configs/config.yaml --mode demo --vis_demo 1 --smpl_model_folder <path to SMPL model folder>
@@ -76,8 +74,7 @@ The public release of the [CAPE dataset]((https://cape.is.tue.mpg.de/dataset)) s
 | error mean   | 7.15 ± 5.27 | 7.42 ± 5.60  | 6.90 ± 5.63   | 6.35 ± 5.46   |  6.19 ± 5.28  |
 | medians      | 5.83        |   5.95       | 5.37          | 4.79          |  4.70       |
 
-\* CoMA-X stands for the model by [Ranjan et al.](https://arxiv.org/abs/1807.10267) with a spatial downsampling rate X at each downsample layer.
-
+\* CoMA-X stands for the model by [Ranjan et al.](https://arxiv.org/abs/1807.10267) with a spatial downsampling rate X at each downsample layer. <br>
 \*\* CAPE-affine\_conv uses an improved mesh-residual block based on the idea of [this CVPR2020 paper](https://arxiv.org/abs/2004.02658), instead of our original mesh residual block. It achieves improved results and is faster in training. To use this layer, use the flag `--affine 1` in training.
 
 
