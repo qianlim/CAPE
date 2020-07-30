@@ -1,7 +1,8 @@
-# for the full list of arguments, please refer to config_parser.py
-name: # specify experiment name here
+dataset: dataset_male_4clotypes
+name: CAPE-affineconv_nz18_pose24_clotype8_male
 lambda_latent: 0.0008
 lambda_edge: 1.0
+num_conv_layers: 8
 nf: 64
 nz: 18
 nz_cond: 24
@@ -12,6 +13,10 @@ reduce_dim: 64
 lr: 0.008
 use_res_block: 0
 use_res_block_dec: 1
+affine: 1
 num_epochs: 60
 lr_warmup: 1
 decay_every: 2
+gender: male
+mode: demo
+vis_demo: 1

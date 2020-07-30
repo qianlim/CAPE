@@ -1,5 +1,13 @@
 ## Changelog
 
+### 30/07/2020
+
+- Improve the dataset packing code.
+- Add configuration for female dataset.
+- Add the missing "ATUsquat" sequence to the male dataset configuration dictionary.
+- Add performance report of our model on the two packed datasets.
+- Add download links to various pretrained models, add config files of the pretrained models to the codebase.
+
 ### 28/07/2020
 
 - Add scripts for training, test (auto-encoding) and data preprocessing.

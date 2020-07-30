@@ -85,9 +85,6 @@ for key in non_model_params:
 print("Building model graph...")
 model = models.CAPE(L=L, D=D, U=U, L_d=L_ds2, D_d=D_ds2, **params)
 
-with open(os.path.join(project_dir,'configs/{}_config.yaml'.format(params['name'])), 'w') as fn:
-    yaml.dump(params, fn)
-
 # start train or test/demo
 if args.mode == 'train':
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='train')

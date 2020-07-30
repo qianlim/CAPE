@@ -10,7 +10,7 @@ np.random.seed(123)
 
 class demo(object):
     def __init__(self, bodydata, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
-                 smpl_model_folder='', vis=True):
+                 smpl_model_folder='body_models', vis=True):
         self.n_sample = n_sample
         self.name = name
         self.data_dir = data_dir

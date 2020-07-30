@@ -35,7 +35,9 @@ loss_mask: None
 
 # demo related
 mode: demo
+smpl_model_folder: body_models
 demo_n_sample: 5
 save_obj: 1
-vis_demo: 0
+vis_demo: 1
+gender: male
 

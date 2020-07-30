@@ -1,0 +1,2 @@
+Download the SMPL body model (as `.pkl` files) and put them in this folder. 
+Then, follow the [instructions](https://github.com/vchoutas/smplx/blob/master/tools/README.md) to remove the Chumpy objects from both model pkls.  

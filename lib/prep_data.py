@@ -21,48 +21,13 @@ import numpy as np
 import cv2
 import tqdm
 
+import sys
+sys.path.append("..")
+
+from data.dataset_configs import dataset_config_dicts
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 packed_data_root = join(script_dir, '../data', 'datasets') # extracted sub-dataset under
-
-# most subjects are captured with a subset of the following motion sequences
-seqs_group1 = [
-    'ballerina_spin', 'basketball', 'bend_back_and_front', 'bend_twist', 'chicken_wings',
-    'flying_eagle', 'hips', 'improvise', 'jumping_jacks', 'move_arms', 'move_shoulders', 'pose_model', 'punching',
-    'ROM_lower', 'ROM_upper', 'rotate_hips', 'running_on_the_spot', 'shoulders_mill', 'simple', 'soccer',
-    'squats', 'twist_tilt', 'tilt_twist_left', 'twist_tilt_left', 'walk_march'
-    ]
-
-# subjects 00134 and 03375 are captured with these sequences, typically 2 trials per sequence
-seqs_group2 = [
-    'athletics', 'ATUsquat', 'babysit', 'badminton', 'basketball', 'ballet1', 'ballet2', 'ballet3', 'ballet4',
-    'box', 'catchpick', 'climb', 'club', 'comfort', 'drinkeat', 'dig', 'fashion','frisbee', 'golf','handball',
-    'hands_up', 'hockey', 'housework', 'lean', 'music', 'row', 'run', 'shoulders', 'simple', 'ski', 'slack',
-    'soccer', 'stepover', 'stretch', 'swim', 'sword', 'tennis', 'twist', 'twist_tilt', 'umbrella', 'volleyball', 'walk'
-    ]
-
-# seqs_group2 tpyically have 2 trials per motion, the sequence name will be e.g. `athletics_trialX'
-# this only applies to 2 subjects: 00134 and 03375. See their data folder for the naming convention described above.
-trials = ['trial1', 'trial2']
-
-# sequences reserved for test in the CAPE paper, unseen in training
-test_seqs = ['ballerina_spin', 'soccer', 'pose_model', 'bend_twist']
-
-# modify this dictionary for your customized choice of subjects and motions
-dataset_male_4clotypes = {
-    'cut_first': 2,
-    'sample_rate': 1,
-
-    'train_subjs': ['03284', '00215', '00127', '00122', '00032', '02474', '03394'],
-    'train_seqs': set(seqs_group1) - set(test_seqs),
-    'train_cloth': ['shortlong', 'longshort', 'shortshort', 'longlong'],
-
-    'exclude_seqs':['running_on_the_spot', 'jumping_jacks'], # excluded due to too much dynamics
-
-    'test_subjs':  ['03284', '00215', '00127', '00122', '00032', '02474', '03394'],
-    'test_seqs': test_seqs,
-    'test_cloth': ['shortlong', 'longshort', 'shortshort', 'longlong'],
-}
 
 
 def pack_unposed_datadict(collections, cape_ds_dir, subj, seq, cloth, cut_first=2, sample_rate=1):
@@ -160,6 +125,8 @@ def create_dataset(phase, dataset_config_dict, cape_ds_dir, dataset_name):
             for cloth in dataset_config_dict['{}_cloth'.format(phase)]:
                 if seq in dataset_config_dict['exclude_seqs']:
                     continue
+                if [subj, cloth] in dataset_config_dict['exclude_cases']:
+                    continue
                 if not exists(join(cape_ds_dir, 'sequences', subj, cloth+'_'+seq)):
                     continue
 
@@ -178,7 +145,6 @@ def create_dataset(phase, dataset_config_dict, cape_ds_dir, dataset_name):
         clolabel_stats = get_clolabel_stats(clo_labels)
     except IndexError:
         pass
-
     if len(vdisps)>0:
         save_all(vdisps, poses, local_rots, clo_labels, dataset_name, phase=phase)
 
@@ -203,12 +169,15 @@ def create_dataset(phase, dataset_config_dict, cape_ds_dir, dataset_name):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Packing the downloaded data into dataset for model training')
-    parser.add_argument('cape_ds_dir', type=str, help='path to the directory of the downloaded CAPE datasaet')
+    parser.add_argument('cape_ds_dir', type=str, help='path to the directory of the downloaded CAPE datasaet',
+                        default='/is/cluster/shared/datasets/ps/clothdata/alignments_clothed_human/cape_release_full')
+    parser.add_argument('--gender', type=str, choices=['female', 'male'], default='male')
     parser.add_argument('--ds_name', type=str, help='name of the dataset to be packed', default=None)
     parser.add_argument('--phase', type=str, help='train, test or both', choices=['train', 'test', 'both'], default='both')
     parser.add_argument('--overwrite', action='store_true',
                             help='If set, packed dataset under the same name will be overwritten')
     args = parser.parse_args()
+
 
     if args.overwrite:
         try:
@@ -218,6 +187,7 @@ if __name__ == '__main__':
             pass
 
     if args.phase in ['train', 'both']:
-        create_dataset('train', dataset_male_4clotypes, args.cape_ds_dir, args.ds_name)
+        create_dataset('train', dataset_config_dicts[args.gender], args.cape_ds_dir, args.ds_name)
+
     if args.phase in ['test', 'both']:
-        create_dataset('test', dataset_male_4clotypes, args.cape_ds_dir, args.ds_name)
+        create_dataset('test', dataset_config_dicts[args.gender], args.cape_ds_dir, args.ds_name)

@@ -53,8 +53,9 @@ def parse_config(argv=None):
     # demo related
     parser.add_argument('--mode', type=str, help='train or test or demo', choices=['train', 'test', 'demo'], default='train')
     parser.add_argument('--gender', type=str, help='used to load smplx model of desired gender at test/demo',
-                        choices=['female', 'male', 'neutral'], default='neutral')
-    parser.add_argument('--smpl_model_folder', type=str, help='folder where the smpl model .pkl files are stored')
+                        choices=['female', 'male'], default='male')
+    parser.add_argument('--smpl_model_folder', type=str, default='body_models',
+                        help='path to the parent folder of the folder where the smpl model .pkl files are stored')
     parser.add_argument('--demo_n_sample', type=int, default=5, help='generate n samples for demo')
     parser.add_argument('--save_obj', type=int, default=1, choices=[0, 1],
                         help='1 for saving meshes generated at demos, 0 for not save')
