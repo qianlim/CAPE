@@ -33,7 +33,7 @@ pip install -U pip setuptools
 - Download our [pre-trained demo model](https://drive.google.com/drive/folders/11n7iuW0DBZH2ZZa67QEb-mdg29gaUyHE?usp=sharing) and put the downloaded folder under the `checkpoints` folder. Then run:
 
 ```bash
-python main.py --config configs/CAPE-affineconv_nz64_pose32_clotype32_male.yaml --mode demo
+python main.py --config configs/CAPE-affineconv_nz64_pose32_clotype32_male.yaml --mode demo_full
 ```
 
 It will generate a few clothed body meshes in the `results/` folder and show on-screen visualization.
@@ -65,7 +65,7 @@ To customize the architecture and training, check the arguments defined in `conf
 Change the `--mode` flag to `demo` to run the auto-encoding evaluation. It will also run the generation demos. 
 
 ```bash
-python main.py --config configs/config.yaml --name <exp_name> --gender <gender> --mode demo
+python main.py --config configs/config.yaml --name <exp_name> --gender <gender> --mode demo_full
 ```
 
 ### Performance

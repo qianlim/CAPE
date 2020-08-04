@@ -8,7 +8,7 @@ from lib.utils import filter_cloth_pose
 
 np.random.seed(123)
 
-class demo(object):
+class demo_full(object):
     def __init__(self, bodydata, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
                  smpl_model_folder='body_models', vis=True):
         self.n_sample = n_sample
@@ -330,3 +330,69 @@ class demo(object):
         self.sample_vary_pose()
         self.sample_vary_clotype()
 
+
+class demo_simple(object):
+    def __init__(self, model, name):
+        self.name = name
+        self.model = model
+        self.n_sample = 3
+        self.save_obj = True
+
+        self.clo_type_readable = np.array(['shortlong', 'shortshort', 'longshort', 'longlong'])
+
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        self.clothing_verts_idx = np.load(join(script_dir, 'data', 'clothing_verts_idx.npy'))
+        self.ref_mesh = Mesh(filename=join(script_dir, 'data', 'template_mesh.obj'))
+        self.minimal_shape = self.ref_mesh.v
+
+        self.rot = np.load(join(script_dir, 'data', 'demo_data', 'demo_pose_params.npz'))['rot']
+        self.pose = np.load(join(script_dir, 'data', 'demo_data', 'demo_pose_params.npz'))['pose']
+
+        train_stats = np.load(join(script_dir, 'data', 'demo_data', 'trainset_stats.npz'))
+        self.train_mean = train_stats['mean']
+        self.train_std = train_stats['std']
+
+        self.results_dir = join(script_dir, 'results', 'demo_results')
+        os.makedirs(self.results_dir, exist_ok=True)
+
+    def sample_vary_clotype(self):
+        '''
+        fix body pose, sample 4 clothing types, under each clothing type sample latent code N times
+        '''
+        clotype = np.array([[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]]) # one-hot encoding of 4 clothing types
+        rot = filter_cloth_pose(self.rot)[0]
+        rot_repeated = np.repeat(rot[np.newaxis,:], len(clotype), axis=0)
+
+        # get latent embedding of the conditions
+        pose_emb, clotype_emb = self.model.encode_only_condition(rot_repeated, clotype)
+        pose_emb = pose_emb[0]
+
+        print('\n=============== Running demo: fix z, pose, change clothing type ===============')
+        print('Found {} different clothing types, for each we generate {} samples\n'.format(len(clotype), self.n_sample))
+
+        # sample z from latent space
+        z_samples = np.random.normal(loc=0.0, scale=1.0, size=(self.n_sample, self.model.nz))
+
+        for i in range(len(clotype)):
+            clotype_i = clotype[i]
+            clotype_emb_i =clotype_emb[i]
+
+            clotype_name = self.clo_type_readable[np.argmax(clotype_i)] # get the human-readable clothing types from one-hot vecs
+
+            # concat z with conditions
+            z_sample_c = np.array([np.concatenate([sample.reshape(1, -1), pose_emb.reshape(1, -1),
+                                clotype_emb_i.reshape(1, -1)], axis=1) for sample in z_samples]).reshape(self.n_sample, -1)
+
+            predictions = self.model.decode(z_sample_c, cond=pose_emb.reshape(1,-1), cond2=clotype_emb_i.reshape(1,-1))
+
+            predictions = predictions * self.train_std + self.train_mean
+
+            # exclude head, fingers and toes
+            disp_masked = np.zeros_like(predictions)
+            disp_masked[:, self.clothing_verts_idx, :] = predictions[:, self.clothing_verts_idx, :]
+
+            predictions_fullbody = disp_masked + self.minimal_shape
+
+            for j in range(self.n_sample):
+                Mesh(predictions_fullbody[j], self.ref_mesh.f).write_obj(join(self.results_dir,
+                                                                              '{}_{:0>4d}.obj').format(clotype_name, j))

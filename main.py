@@ -2,7 +2,7 @@ import numpy as np
 import yaml
 import os
 import copy
-from demos import demo
+from demos import demo_full, demo_simple
 from lib import models, mesh_sampling
 from lib.load_data import BodyData, load_graph_mtx
 from config_parser import parse_config
@@ -16,16 +16,18 @@ reference_mesh = Mesh(filename=reference_mesh_file)
 
 datadir_root = os.path.join(project_dir, 'data', 'datasets')
 data_dir = os.path.join(datadir_root, args.dataset)
-# load data
-print("Loading data from {} ..".format(data_dir))
-bodydata = BodyData(nVal=100,
-                    train_mesh_fn=data_dir + '/train/train_disp.npy',
-                    train_cond1_fn=data_dir + '/train/train_{}.npy'.format(args.pose_type),
-                    train_cond2_fn=data_dir + '/train/train_{}.npy'.format('clo_label'),
-                    test_mesh_fn=data_dir + '/test/test_disp.npy',
-                    test_cond1_fn=data_dir + '/test/test_{}.npy'.format(args.pose_type),
-                    test_cond2_fn=data_dir + '/test/test_{}.npy'.format('clo_label'),
-                    reference_mesh_file=reference_mesh_file)
+
+if args.mode in ['train', 'demo_full']:
+    # load data
+    print("Loading data from {} ..".format(data_dir))
+    bodydata = BodyData(nVal=100,
+                        train_mesh_fn=data_dir + '/train/train_disp.npy',
+                        train_cond1_fn=data_dir + '/train/train_{}.npy'.format(args.pose_type),
+                        train_cond2_fn=data_dir + '/train/train_{}.npy'.format('clo_label'),
+                        test_mesh_fn=data_dir + '/test/test_disp.npy',
+                        test_cond1_fn=data_dir + '/test/test_{}.npy'.format(args.pose_type),
+                        test_cond2_fn=data_dir + '/test/test_{}.npy'.format('clo_label'),
+                        reference_mesh_file=reference_mesh_file)
 
 if args.num_conv_layers==4:
     ds_factors = [1, args.ds_factor, 1, 1]
@@ -50,6 +52,16 @@ params = copy.deepcopy(args_dict)
 params['restart'] = bool(args.restart)
 params['use_res_block'], params['use_res_block_dec'] = bool(args.use_res_block), bool(args.use_res_block_dec)
 params['nn_input_channel'] = 3
+params['K'] = [2] * args.num_conv_layers
+params['Kd'] = args.Kd  # Chebyshev Polynomial orders.
+params['p'] = p
+params['n_layer_cond'] = args.n_layer_cond
+params['cond_encoder'] = bool(args.cond_encoder)
+params['reduce_dim'] = args.reduce_dim
+params['affine'] = bool(args.affine)
+params['optimizer'] = args.optimizer
+params['lr_warmup'] = bool(args.lr_warmup)
+params['optim_condnet'] = bool(args.optim_condnet)
 
 nf = args.nf
 if args.num_conv_layers==4:
@@ -61,19 +73,14 @@ elif args.num_conv_layers == 8:
 else:
     raise NotImplementedError
 
-params['K'] = [2] * args.num_conv_layers
-params['Kd'] = args.Kd  # Chebyshev Polynomial orders.
-params['p'] = p
-params['decay_steps'] = args.decay_every * len(bodydata.vertices_train) / params['batch_size']
-params['cond_dim'] = bodydata.cond1_train.shape[-1]
-params['cond2_dim'] = bodydata.cond2_train.shape[-1]
-params['n_layer_cond'] = args.n_layer_cond
-params['cond_encoder'] = bool(args.cond_encoder)
-params['reduce_dim'] = args.reduce_dim
-params['affine'] = bool(args.affine)
-params['optimizer'] = args.optimizer
-params['lr_warmup'] = bool(args.lr_warmup)
-params['optim_condnet'] = bool(args.optim_condnet)
+if args.mode != 'demo_simple':
+    params['decay_steps'] = args.decay_every * len(bodydata.vertices_train) / params['batch_size']
+    params['cond_dim'] = bodydata.cond1_train.shape[-1]
+    params['cond2_dim'] = bodydata.cond2_train.shape[-1]
+else: # for the simple demo
+    params['decay_steps'] = 1
+    params['cond_dim'] = 126
+    params['cond2_dim'] = 4
 
 non_model_params = ['demo_n_sample', 'mode', 'dataset', 'num_conv_layers', 'ds_factor',
                     'seed', 'nf', 'config', 'pose_type', 'decay_every', 'gender',
@@ -85,6 +92,9 @@ for key in non_model_params:
 print("Building model graph...")
 model = models.CAPE(L=L, D=D, U=U, L_d=L_ds2, D_d=D_ds2, **params)
 
+with open(os.path.join(project_dir,'configs/{}_config.yaml'.format(params['name'])), 'w') as fn:
+    yaml.dump(params, fn)
+
 # start train or test/demo
 if args.mode == 'train':
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='train')
@@ -92,14 +102,20 @@ if args.mode == 'train':
 
     # full full test pipeline after training
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='demo')
-    demos = demo(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
+    demos = demo_full(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
                  n_sample=args.demo_n_sample, save_obj=bool(args.save_obj),
                  vis=bool(args.vis_demo), smpl_model_folder=args.smpl_model_folder)
     demos.run()
 else:
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='demo')
-    demos = demo(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
-                 n_sample=args.demo_n_sample, save_obj=bool(args.save_obj),
-                 vis=bool(args.vis_demo), smpl_model_folder=args.smpl_model_folder)
-    demos.run()
+
+    if args.mode == 'demo_simple':
+        demos = demo_simple(model, args.name)
+        demos.sample_vary_clotype()
+    else:
+        demos = demo_full(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
+                     n_sample=args.demo_n_sample, save_obj=bool(args.save_obj),
+                     vis=bool(args.vis_demo), smpl_model_folder=args.smpl_model_folder)
+        demos.run()
+
 
