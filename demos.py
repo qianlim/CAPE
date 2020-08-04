@@ -2,8 +2,8 @@ import numpy as np
 import os
 import smplx
 import torch
+import trimesh
 from os.path import join, exists
-from psbody.mesh import Mesh, MeshViewer, MeshViewers
 from lib.utils import filter_cloth_pose
 
 np.random.seed(123)
@@ -20,6 +20,8 @@ class demo_full(object):
         self.dataset = dataset
         self.save_obj = save_obj
         self.vis = vis
+
+        from psbody.mesh import Mesh
 
         self.smpl_model = smplx.body_models.create(model_type='smpl',
                                                    model_path=smpl_model_folder,
@@ -223,6 +225,8 @@ class demo_full(object):
 
 
     def vis_meshviewer(self, mesh1, mesh2, mesh3, n_sample, titlebar='titlebar', disp_value=False, values_to_disp=None):
+        from psbody.mesh import Mesh, MeshViewers
+
         if mesh3 is not None:
             viewer = MeshViewers(shape=(1, 3), titlebar=titlebar)
             for x in range(n_sample):
@@ -249,6 +253,8 @@ class demo_full(object):
         :param verts: [N, 6890, 3]
         :param pose_params: [N, 72]
         '''
+        from psbody.mesh import Mesh, MeshViewers
+
         if verts.shape[0] != 1: # minimal shape: pose it to every pose
             assert verts.shape[0] == pose_params.shape[0] # otherwise the number of results should equal the number of pose identities
 
@@ -292,6 +298,8 @@ class demo_full(object):
         :param verts: [N, 6890, 3]
         :param pose_params: [N, 72]
         '''
+        from psbody.mesh import Mesh, MeshViewers
+
         if verts.shape[0] != 1: # minimal shape: pose it to every pose
             assert verts.shape[0] == pose_params.shape[0] # otherwise the number of results should equal the number of pose identities
 
@@ -338,12 +346,14 @@ class demo_simple(object):
         self.n_sample = 3
         self.save_obj = True
 
+        import trimesh
+
         self.clo_type_readable = np.array(['shortlong', 'shortshort', 'longshort', 'longlong'])
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
         self.clothing_verts_idx = np.load(join(script_dir, 'data', 'clothing_verts_idx.npy'))
-        self.ref_mesh = Mesh(filename=join(script_dir, 'data', 'template_mesh.obj'))
-        self.minimal_shape = self.ref_mesh.v
+        self.ref_mesh = trimesh.load(join(script_dir, 'data', 'template_mesh.obj'), process=False)
+        self.minimal_shape = self.ref_mesh.vertices
 
         self.rot = np.load(join(script_dir, 'data', 'demo_data', 'demo_pose_params.npz'))['rot']
         self.pose = np.load(join(script_dir, 'data', 'demo_data', 'demo_pose_params.npz'))['pose']
@@ -394,5 +404,5 @@ class demo_simple(object):
             predictions_fullbody = disp_masked + self.minimal_shape
 
             for j in range(self.n_sample):
-                Mesh(predictions_fullbody[j], self.ref_mesh.f).write_obj(join(self.results_dir,
-                                                                              '{}_{:0>4d}.obj').format(clotype_name, j))
+                mm = trimesh.Trimesh(vertices=predictions_fullbody[j], faces=self.ref_mesh.faces)
+                mm.export(join(self.results_dir, '{}_{:0>4d}.obj').format(clotype_name, j))
