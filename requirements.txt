@@ -9,6 +9,6 @@ tqdm
 gdown
 trimesh>=3.6
 tensorflow-gpu==1.13.2
-numpy==1.16.1
+numpy==1.16.2
 torch>=1.2
 smplx==0.1.13

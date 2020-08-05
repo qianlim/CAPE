@@ -5,7 +5,7 @@ from lib.utils import filter_cloth_pose
 from lib.mesh_sampling import laplacian
 
 def load_graph_mtx(project_dir, load_for_demo=False):
-    print('loading pre-saved transform matrices for downsampling factor=2..')
+    print('loading pre-saved transform matrices...')
     A_ds2 = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/ds2/A.npy'), encoding='latin1'))
     D_ds2 = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/ds2/D.npy'), encoding='latin1'))
     U_ds2 = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/ds2/U.npy'), encoding='latin1'))

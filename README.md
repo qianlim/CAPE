@@ -1,6 +1,6 @@
 ## CAPE: Clothed Auto-Person Encoding (CVPR 2020)
 
-[![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b.svg)](https://arxiv.org/abs/1907.13615) [![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)]() [![tensorflow](https://aleen42.github.io/badges/src/tensorflow.svg)]()
+[![Paper](https://img.shields.io/badge/arXiv-Paper-b31b1b.svg)](https://arxiv.org/abs/1907.13615) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1DCNo2OyyTNi1xDG-7j32FZQ9sBA6i9Ys)
 
 Tensorflow (1.13) implementation of the CAPE model, a Mesh-CVAE with a mesh patch discriminator, for **dressing SMPL bodies** with pose-dependent clothing, introduced in the CVPR 2020 paper:
 
@@ -10,6 +10,12 @@ Qianli Ma, Jinlong Yang, Anurag Ranjan, Sergi Pujades, Gerard Pons-Moll, Siyu Ta
 
 
 ![](data/cape.gif)
+
+## Google Colab demo
+
+In case you do not have a suitable GPU environment to run the CAPE code, we offer a demo on Google Colab. It generates and visualizes the 3D geometry of the clothed SMPL meshes:  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1DCNo2OyyTNi1xDG-7j32FZQ9sBA6i9Ys)
+
+For the full demo and training, follow the next steps.
 
 ## Installation
 
@@ -24,7 +30,7 @@ pip install -U pip setuptools
 - Install [PSBody Mesh package](https://github.com/MPI-IS/mesh). Currently we recommend installing version 0.3.
 - Install [smplx python package](https://github.com/vchoutas/smplx). 
 - Download the [SMPL body model](https://smpl.is.tue.mpg.de/), and place the `.pkl` files for both genders and put them in `/body_models/smpl/`. Follow the [instructions](https://github.com/vchoutas/smplx/blob/master/tools/README.md) to remove the Chumpy objects from both model pkls.  
-- Then simply run `pip install -r requirements.txt` (do this at last to ensure `numpy==1.16.1`).
+- Then simply run `pip install -r requirements.txt` (do this at last to ensure `numpy==1.16.2`).
 
 ## Quick demo 
 
@@ -33,7 +39,7 @@ pip install -U pip setuptools
 - Download our [pre-trained demo model](https://drive.google.com/drive/folders/11n7iuW0DBZH2ZZa67QEb-mdg29gaUyHE?usp=sharing) and put the downloaded folder under the `checkpoints` folder. Then run:
 
 ```bash
-python main.py --config configs/CAPE-affineconv_nz64_pose32_clotype32_male.yaml --mode demo_full
+python main.py --config configs/CAPE-affineconv_nz64_pose32_clotype32_male.yaml --mode demo
 ```
 
 It will generate a few clothed body meshes in the `results/` folder and show on-screen visualization.
@@ -46,7 +52,7 @@ python lib/prep_data.py <path_to_downloaded_CAPE_dataset> --ds_name dataset_male
 ```
 will create a dataset named `dataset_male_4clotypes`, both the training and test splits, under `data/datasets/dataset_male_4clotypes`. This dataset contains 31036 training and 5128 test examples. Similarly, setting `--ds_name dataset_female_4clotypes` will create the female dataset that contains 21090 training and 5441 test examples.
 
-To customize the packed dataset, simply edit the `dataset_config_dicts` defined in `data/dataset_configs.py` for your subject / clothing type / sequences of interest.
+To customize the packed dataset, simply edit the `dataset_config_dicts` defined in `data/dataset_configs.py` for your subject / clothing type / sequences of interest. 
 
 ### Training
 
@@ -65,12 +71,12 @@ To customize the architecture and training, check the arguments defined in `conf
 Change the `--mode` flag to `demo` to run the auto-encoding evaluation. It will also run the generation demos. 
 
 ```bash
-python main.py --config configs/config.yaml --name <exp_name> --gender <gender> --mode demo_full
+python main.py --config configs/config.yaml --name <exp_name> --gender <gender> --mode demo
 ```
 
 ### Performance
 
-The public release of the [CAPE dataset]((https://cape.is.tue.mpg.de/dataset)) slightly differs from what we used in the paper due to the removal of faulty / corrupted frames. Therefore we retrained our model on the `dataset_male_4clotypes` and `dataset_female_4clotypes` datasets packed as shown above, and report the performance in terms of per-vertex auto-encoding eucledian errors (in mm).
+The public release of the [CAPE dataset]((https://cape.is.tue.mpg.de/dataset)) slightly differs from what we used in the paper due to the removal of faulty / corrupted frames. Therefore we retrained our model on the `dataset_male_4clotypes` and `dataset_female_4clotypes` datasets packed as shown above, and report the performance in terms of per-vertex auto-encoding Eucledian errors (in mm).
 
 **On male dataset**:
 
@@ -100,11 +106,17 @@ Our pretrained models on the above two datasets can be downloaded [here](https:/
 To run evaluation / demo from the pretrained models, put the downloaded folder(s) under the `checkpoints` folder, and run the evaluation command, e. g.:
 
 ```bash
-python main.py --config configs/CAPE-affineconv_nz18_pose24_clotype8_male.yaml
+python main.py --config configs/CAPE-affineconv_nz18_pose24_clotype8_male.yaml --mode demo
 ```
 
+## CAPE dataset
+
+Together with the model, we introduce the new CAPE dataset, a large scale 3D mesh dataset of clothed humans in motion. It contains 150K dynamnic clothed human mesh registrations from real scan data, with consistent topology. We also provide precise body shape under clothing, SMPL pose parameters and clothing displacements for all data frames, as well as handy code to process the data. Check it out at our [project website](https://cape.is.tue.mpg.de/)!
 
 ## News
+
+**05/08/2020** A Google Colab demo is added!
+
 **28/07/2020** Data packing and training scripts added! Also added a few new features. Check the [changelog](./CHANGELOG.md) for more details.
 
 **26/07/2020** Updated the link to the pretrained checkpoint (previous one was faulty and generates weird shapes); minor bug fixes in the group norm param loading.
