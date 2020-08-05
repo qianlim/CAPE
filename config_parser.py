@@ -51,7 +51,7 @@ def parse_config(argv=None):
     parser.add_argument('--lambda_latent', type=float, default=8e-4, help='coefficient for latent loss, while l1 loss has coeff 1')
     parser.add_argument('--lambda_gan', type=float, default=0.1, help='coefficient for gan loss')
     # demo related
-    parser.add_argument('--mode', type=str, help='train or test or demo', choices=['train', 'test', 'demo_full', 'demo_simple'], default='train')
+    parser.add_argument('--mode', type=str, help='train or test or demo', choices=['train', 'test', 'demo'], default='train')
     parser.add_argument('--gender', type=str, help='used to load smplx model of desired gender at test/demo',
                         choices=['female', 'male'], default='male')
     parser.add_argument('--smpl_model_folder', type=str, default='body_models',

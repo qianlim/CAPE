@@ -6,11 +6,9 @@ import trimesh
 from os.path import join, exists
 from lib.utils import filter_cloth_pose
 
-np.random.seed(123)
-
 class demo_full(object):
     def __init__(self, bodydata, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
-                 smpl_model_folder='body_models', vis=True):
+                 smpl_model_folder='body_models', random_seed=123, vis=True):
         self.n_sample = n_sample
         self.name = name
         self.data_dir = data_dir
@@ -22,7 +20,6 @@ class demo_full(object):
         self.vis = vis
 
         from psbody.mesh import Mesh
-
         self.smpl_model = smplx.body_models.create(model_type='smpl',
                                                    model_path=smpl_model_folder,
                                                    gender=gender)
@@ -44,6 +41,8 @@ class demo_full(object):
 
         self.results_dir = join(script_dir, 'results', name)
         os.makedirs(self.results_dir, exist_ok=True)
+
+        np.random.seed(random_seed)
 
 
     def test_model(self):
@@ -340,7 +339,7 @@ class demo_full(object):
 
 
 class demo_simple(object):
-    def __init__(self, model, name):
+    def __init__(self, model, name, random_seed=123):
         self.name = name
         self.model = model
         self.n_sample = 3
@@ -364,6 +363,8 @@ class demo_simple(object):
 
         self.results_dir = join(script_dir, 'results', 'demo_results')
         os.makedirs(self.results_dir, exist_ok=True)
+
+        np.random.seed(random_seed)
 
     def sample_vary_clotype(self):
         '''

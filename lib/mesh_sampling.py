@@ -5,10 +5,7 @@ https://github.com/anuragranj/coma
 import math
 import heapq
 import numpy as np
-import os
 import scipy.sparse as sp
-from psbody.mesh import Mesh
-from psbody.mesh.topology.connectivity import get_vert_connectivity, get_vertices_per_edge
 
 def laplacian(W, normalized=True):
     """get graph laplacian from adjacency matrix."""
@@ -120,6 +117,7 @@ def qslim_decimator_transformer(mesh, factor=None, n_verts_desired=None):
     :param n_verts_desired: number of the original vertices to retain
     :returns: new_faces: An Fx3 array of faces, mtx: Transformation matrix
     """
+    from psbody.mesh.topology.connectivity import get_vert_connectivity, get_vertices_per_edge
 
     if factor is None and n_verts_desired is None:
         raise Exception('Need either factor or n_verts_desired.')
@@ -243,6 +241,9 @@ def _get_sparse_transform(faces, num_original_verts):
     return (new_faces, mtx)
 
 def generate_transform_matrices(mesh, factors):
+    from psbody.mesh.topology.connectivity import get_vert_connectivity, get_vertices_per_edge
+    from psbody.mesh import Mesh
+
     factors = map(lambda x: 1.0/x, factors)
     M,A,D,U,E = [], [], [], [], []
     A.append(get_vert_connectivity(mesh))

@@ -4,8 +4,8 @@ import numpy as np
 import os, time, collections, shutil
 from . import losses, utils
 from .mesh_sampling import rescale_L
-from psbody.mesh import Mesh
 import tqdm
+import trimesh
 
 from tensorflow.python.util import deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -16,13 +16,13 @@ class base_model(object):
                  filter='chebyshev5', activation='b1leakyrelu', pool='poolwT',
                  unpool='poolwT', num_epochs=60, lr=0.008, decay_rate=0.99,
                  optimizer='sgd', decay_steps=None, momentum=0.9, cond_dim=0, nz_cond=0,
-                 regularization=0, batch_size=32,
+                 regularization=0, batch_size=32, seed=123,
                  lambda_recon=1.0, lambda_edge=0.0, lambda_latent=1e-3,
                  restart=False, name='', loss_mask=None):
         try:
-            tf.random.set_random_seed(123)
+            tf.random.set_random_seed(seed)
         except:
-            tf.set_random_seed(123)
+            tf.set_random_seed(seed)
         self.input_num_verts = L[0].shape[0]
         self.nn_input_channel = nn_input_channel
 
@@ -41,7 +41,7 @@ class base_model(object):
         self.plot_latent = False
 
         self.script_path = os.path.dirname(os.path.realpath(__file__))
-        self.verts_ref = Mesh(filename=os.path.join(self.script_path, '..', 'data/template_mesh.obj')).v
+        self.verts_ref = trimesh.load(os.path.join(self.script_path, '..', 'data/template_mesh.obj'), process=False).vertices
         self.vpe = np.load(os.path.join(self.script_path, '..','data/edges_smpl.npy')) # vertex per edge
 
         if loss_mask == 'binary':

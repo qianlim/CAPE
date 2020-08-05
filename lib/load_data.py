@@ -1,11 +1,10 @@
 import os
 import numpy as np
 import time
-from psbody.mesh import Mesh, MeshViewer, MeshViewers
 from lib.utils import filter_cloth_pose
 from lib.mesh_sampling import laplacian
 
-def load_graph_mtx(project_dir):
+def load_graph_mtx(project_dir, load_for_demo=False):
     print('loading pre-saved transform matrices for downsampling factor=2..')
     A_ds2 = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/ds2/A.npy'), encoding='latin1'))
     D_ds2 = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/ds2/D.npy'), encoding='latin1'))
@@ -17,7 +16,20 @@ def load_graph_mtx(project_dir):
 
     L_ds2 = [laplacian(a, normalized=True) for a in A_ds2]
 
-    return L_ds2, D_ds2, U_ds2
+    if not load_for_demo:
+        return L_ds2, D_ds2, U_ds2
+    else:
+        A = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/for_demo/A.npy'), encoding='latin1'))
+        D = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/for_demo/D.npy'), encoding='latin1'))
+        U = list(np.load(os.path.join(project_dir, 'data', 'transform_matrices/for_demo/U.npy'), encoding='latin1'))
+
+        p = list(map(lambda x: x.shape[0], A))
+        A = list(map(lambda x: x.astype('float32'), A))
+        D = list(map(lambda x: x.astype('float32'), D))
+        U = list(map(lambda x: x.astype('float32'), U))
+
+        L = [laplacian(a, normalized=True) for a in A]
+        return L, D, U, p, L_ds2, D_ds2, U_ds2
 
 
 class BodyData(object):
@@ -37,6 +49,7 @@ class BodyData(object):
         self.n_vertex = None
 
         self.load()
+        from psbody.mesh import Mesh
         self.reference_mesh = Mesh(filename=reference_mesh_file)
 
         self.mean = np.mean(self.vertices_train, axis=0)
@@ -114,6 +127,7 @@ class BodyData(object):
             self.cond2_test = self.cond2_test.astype('float32')
 
     def vec2mesh(self, vec):
+        from psbody.mesh import Mesh
         vec = vec.reshape((self.n_vertex, 3)) * self.std + self.mean
         return Mesh(v=vec, f=self.reference_mesh.f)
 
@@ -127,6 +141,7 @@ class BodyData(object):
         return 0
 
     def get_normalized_meshes(self, mesh_paths):
+        from psbody.mesh import Mesh
         meshes = []
         for mesh_path in mesh_paths:
             mesh = Mesh(filename=mesh_path)
