@@ -15,16 +15,18 @@ reference_mesh = Mesh(filename=reference_mesh_file)
 
 datadir_root = os.path.join(project_dir, 'data', 'datasets')
 data_dir = os.path.join(datadir_root, args.dataset)
-# load data
-print("Loading data from {} ..".format(data_dir))
-bodydata = BodyData(nVal=100,
-                    train_mesh_fn=data_dir + '/train/train_disp.npy',
-                    train_cond1_fn=data_dir + '/train/train_{}.npy'.format(args.pose_type),
-                    train_cond2_fn=data_dir + '/train/train_{}.npy'.format('clo_label'),
-                    test_mesh_fn=data_dir + '/test/test_disp.npy',
-                    test_cond1_fn=data_dir + '/test/test_{}.npy'.format(args.pose_type),
-                    test_cond2_fn=data_dir + '/test/test_{}.npy'.format('clo_label'),
-                    reference_mesh_file=reference_mesh_file)
+
+# load data for train and test
+if args.mode in ['train', 'test']:
+    print("Loading data from {} ..".format(data_dir))
+    bodydata = BodyData(nVal=100,
+                        train_mesh_fn=data_dir + '/train/train_disp.npy',
+                        train_cond1_fn=data_dir + '/train/train_{}.npy'.format(args.pose_type),
+                        train_cond2_fn=data_dir + '/train/train_{}.npy'.format('clo_label'),
+                        test_mesh_fn=data_dir + '/test/test_disp.npy',
+                        test_cond1_fn=data_dir + '/test/test_{}.npy'.format(args.pose_type),
+                        test_cond2_fn=data_dir + '/test/test_{}.npy'.format('clo_label'),
+                        reference_mesh_file=reference_mesh_file)
 
 if args.num_conv_layers==4:
     ds_factors = [1, args.ds_factor, 1, 1]
@@ -63,9 +65,9 @@ else:
 params['K'] = [2] * args.num_conv_layers
 params['Kd'] = args.Kd  # Chebyshev Polynomial orders.
 params['p'] = p
-params['decay_steps'] = args.decay_every * len(bodydata.vertices_train) / params['batch_size']
-params['cond_dim'] = bodydata.cond1_train.shape[-1]
-params['cond2_dim'] = bodydata.cond2_train.shape[-1]
+params['decay_steps'] = args.decay_every * len(bodydata.vertices_train) / params['batch_size'] if args.mode=='train' else 1
+params['cond_dim'] = 14*9 # 14 clothing-related joints * 9 elements per rot matrix
+params['cond2_dim'] = 4
 params['n_layer_cond'] = args.n_layer_cond
 params['cond_encoder'] = bool(args.cond_encoder)
 params['reduce_dim'] = args.reduce_dim
@@ -91,13 +93,17 @@ if args.mode == 'train':
 
     # full test pipeline after training
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='demo')
-    demos = demo_full(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
+    demos = demo_full(model, args.name, args.gender, args.dataset, data_dir, datadir_root,
                  n_sample=args.demo_n_sample, save_obj=bool(args.save_obj), random_seed=args.seed,
                  vis=bool(args.vis_demo), smpl_model_folder=args.smpl_model_folder)
+    demos.test_model(bodydata)
     demos.run()
 else:
     model.build_graph(model.input_num_verts, model.nn_input_channel, phase='demo')
-    demos = demo_full(bodydata, model, args.name, args.gender, args.dataset, data_dir, datadir_root,
+    demos = demo_full(model, args.name, args.gender, args.dataset, data_dir, datadir_root,
                  n_sample=args.demo_n_sample, save_obj=bool(args.save_obj), random_seed=args.seed,
                  vis=bool(args.vis_demo), smpl_model_folder=args.smpl_model_folder)
-    demos.run()
+    if args.mode == 'test':
+        demos.test_model(bodydata)
+    else:
+        demos.run()

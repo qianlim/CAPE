@@ -7,13 +7,12 @@ from os.path import join, exists
 from lib.utils import filter_cloth_pose
 
 class demo_full(object):
-    def __init__(self, bodydata, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
+    def __init__(self, model, name, gender, dataset, data_dir, datadir_root, n_sample, save_obj,
                  smpl_model_folder='body_models', random_seed=123, vis=True):
         self.n_sample = n_sample
         self.name = name
         self.data_dir = data_dir
         self.datadir_root = datadir_root
-        self.bodydata = bodydata
         self.model = model
         self.dataset = dataset
         self.save_obj = save_obj
@@ -45,7 +44,7 @@ class demo_full(object):
         np.random.seed(random_seed)
 
 
-    def test_model(self):
+    def test_model(self, bodydata):
         '''
         test the auto-encoding errors of the model
         '''
@@ -53,11 +52,11 @@ class demo_full(object):
 
         obj_dir = join(self.results_dir, 'test_reconstruction_objs_{}'.format(self.dataset))
 
-        vertices = self.bodydata.vertices_test
-        condition = self.bodydata.cond1_test
-        if hasattr(self.bodydata, 'cond1_test_full'):
-            pose_params_full = self.bodydata.cond1_test_full
-        condition2 = self.bodydata.cond2_test
+        vertices = bodydata.vertices_test
+        condition = bodydata.cond1_test
+        if hasattr(bodydata, 'cond1_test_full'):
+            pose_params_full = bodydata.cond1_test_full
+        condition2 = bodydata.cond2_test
 
         print("\nTesting on test set, {} examples...\n".format(len(vertices)))
 
@@ -66,8 +65,8 @@ class demo_full(object):
                                                                              cond2=condition2,
                                                                              labels=vertices,
                                                                              phase='test')
-        predictions = predictions * self.bodydata.std + self.bodydata.mean
-        gt = vertices * self.bodydata.std + self.bodydata.mean
+        predictions = predictions * bodydata.std + bodydata.mean
+        gt = vertices * bodydata.std + bodydata.mean
 
         # compute the test errors that belong to clothing-related vertices
         diff = predictions - gt
@@ -104,7 +103,7 @@ class demo_full(object):
             pose_params_full = rot2pose(pose_params_full)
 
         if self.save_obj or self.vis:
-            if hasattr(self.bodydata, 'cond1_test_full'):
+            if hasattr(bodydata, 'cond1_test_full'):
                 # only save / vis exemplars of test set, to save time and disk space
                 predictions_fullbody_sliced = predictions_fullbody[::int(len(gt_fullbody)/self.n_sample)]
                 pose_params_full_sliced = pose_params_full[::int(len(gt_fullbody)/self.n_sample)]
@@ -119,7 +118,7 @@ class demo_full(object):
                     minimal_shape_repeated = np.repeat(self.minimal_shape[np.newaxis, :], gt_fullbody.shape[0], axis=0)
 
         if self.vis:
-            if hasattr(self.bodydata, 'cond1_test_full'):
+            if hasattr(bodydata, 'cond1_test_full'):
                 self.vis_meshviewer(predictions_fullbody_posed, gt_fullbody_posed, minimal_shape_posed, self.n_sample)
             else:
                 self.vis_meshviewer(predictions_fullbody, gt_fullbody, minimal_shape_repeated, self.n_sample)
@@ -177,7 +176,7 @@ class demo_full(object):
         full_pose = self.pose[2] # take the corresponding full 72-dim pose params, for later reposing
         full_pose_repeated = np.repeat(full_pose[np.newaxis,:], self.n_sample, axis=0)
 
-        clotype = np.unique(self.bodydata.cond2_test, axis=0)
+        clotype = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) # one-hot encoding of the 4 outfit types in the paper
         rot = filter_cloth_pose(self.rot)[0]  # only keep pose params from clo-related joints; then take one pose instance
         rot_repeated = np.repeat(rot[np.newaxis,:], len(clotype), axis=0) # repeat to pair with clotype
 
@@ -333,7 +332,6 @@ class demo_full(object):
 
 
     def run(self):
-        self.test_model()
         self.sample_vary_pose()
         self.sample_vary_clotype()
 
