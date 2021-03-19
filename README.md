@@ -6,7 +6,7 @@ Tensorflow (1.13) implementation of the CAPE model, a Mesh-CVAE with a mesh patc
 
 **Learning to Dress 3D People in Generative Clothing** <br>
 Qianli Ma, Jinlong Yang, Anurag Ranjan, Sergi Pujades, Gerard Pons-Moll, Siyu Tang, and Michael. J. Black <br>
-[Full paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Ma_Learning_to_Dress_3D_People_in_Generative_Clothing_CVPR_2020_paper.pdf) | [Paper in 1 min](https://cape.is.tue.mpg.de/uploads/ckeditor/attachments/273/382-1min.mp4) | [Paper in 4 min](https://youtu.be/e4W-hPFNwDE) | [New dataset](https://cape.is.tue.mpg.de/dataset) | [Project website](https://cape.is.tue.mpg.de/)
+[Full paper](https://openaccess.thecvf.com/content_CVPR_2020/papers/Ma_Learning_to_Dress_3D_People_in_Generative_Clothing_CVPR_2020_paper.pdf) | [Paper in 1 min](https://cape.is.tue.mpg.de/uploads/ckeditor/attachments/625/382-1min.mp4) | [Paper in 4 min](https://youtu.be/e4W-hPFNwDE) | [New dataset](https://cape.is.tue.mpg.de/dataset) | [Project website](https://cape.is.tue.mpg.de/)
 
 
 ![](data/cape.gif)
