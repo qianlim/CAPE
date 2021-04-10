@@ -27,10 +27,10 @@ source $HOME/.virtualenvs/cape/bin/activate
 pip install -U pip setuptools
 ```
 
-- Install [PSBody Mesh package](https://github.com/MPI-IS/mesh). Currently we recommend installing version 0.3.
-- Install [smplx python package](https://github.com/vchoutas/smplx). 
-- Download the [SMPL body model](https://smpl.is.tue.mpg.de/), and place the `.pkl` files for both genders and put them in `/body_models/smpl/`. Follow the [instructions](https://github.com/vchoutas/smplx/blob/master/tools/README.md) to remove the Chumpy objects from both model pkls.  
-- Then simply run `pip install -r requirements.txt` (do this at last to ensure `numpy==1.16.2`).
+- Install [PSBody Mesh package](https://github.com/MPI-IS/mesh/releases/tag/v0.3). Currently we recommend installing version 0.3.
+- `pip install -r requirements.txt`
+- Download the [SMPL body model](https://smpl.is.tue.mpg.de/) (Note: use the version 1.0.0 with 10 shape PCs), and place the `.pkl` files for both genders and put them in `/body_models/smpl/`. Follow the [instructions](https://github.com/vchoutas/smplx/blob/master/tools/README.md) to remove the Chumpy objects from both model pkls.  
+- `pip install numpy==1.16.2`  (do this at last to ensure `numpy==1.16.2`).
 
 ## Quick demo 
 
@@ -143,6 +143,10 @@ If you find our code / paper / data useful to your research, please consider cit
 ```
 
 ### Related projects
+
+[SCALE (CVPR 2021)](https://qianlim.github.io/SCALE): We use a novel explicit representation --- hundreds of local surface patches -- to model pose-dependent deformation of humans in clothing, including those wearing jackets and skirts!
+
+[SCANimate (CVPR 2021)](https://scanimate.is.tue.mpg.de): Trained on the CAPE dataset, we use implicit functions to build avatars directly from *raw* scans, with pose-dependent clothing deformation, without the need for surface registration or clothing/body template. Check it out!
 
 [CoMA (ECCV 2018)](https://coma.is.tue.mpg.de/): Our (non-conditional) convolutional mesh autoencoder for modeling extreme facial expressions. The codes of the CAPE repository are based on the [repository of CoMA](https://github.com/anuragranj/coma). If you find the code of this repository useful, please consider also citing CoMA.
 
