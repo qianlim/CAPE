@@ -8,6 +8,6 @@ ConfigArgParse
 tqdm
 gdown
 trimesh>=3.6
-tensorflow-gpu==1.13.2
+tensorflow-gpu==2.9.3
 torch==1.2.0
 smplx==0.1.13
